@@ -17,7 +17,7 @@ from django.db import (
 from django.db import connection
 from django.db.backends.mysql.base import DatabaseWrapper
 
-__all__ = ('patch', 'unpatch', 'with_query_retry', 'QueryRetry')
+__all__ = ('install', 'uninstall', 'with_query_retry', 'QueryRetry')
 
 logger = logging.getLogger('django-db-retry')
 
@@ -71,7 +71,7 @@ def configure_retry_rule(max_tries: int) -> Callable:
     )
 
 
-def patch(max_tries: int = DEFAULT_MAX_TRIES):
+def install(max_tries: int = DEFAULT_MAX_TRIES):
     """
     Main entry-point for monkey-patching of django db-related methods.
     We do patch two of them:
@@ -88,7 +88,7 @@ def patch(max_tries: int = DEFAULT_MAX_TRIES):
         execute_with_wrappers)
 
 
-def unpatch():
+def uninstall():
     """ Replace patched methods back to original ones """
     DatabaseWrapper.ensure_connection = original_ensure_connection
     django.db.backends.utils.CursorWrapper._execute_with_wrappers = original_execute_with_wrappers

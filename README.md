@@ -2,34 +2,40 @@
 
 ## Motivation
 
-Should be used to deal with network errors and deadlocks during execution of queries.
-Usually when you develop a project locally with a single user - everything works perfectly. 
-But when it comes to the real world - any application can (and definitely will) face network issues. 
-Another one case - deadlocks, which I personally see too often in across different projects. The 
-only possible solution here to avoid the data-loss is to do a query retry.
-This package is using the `backoff` library under the hood 
+Main motivation - to avoid data loss.
+
+Usually when you develop a project locally with a single user - everything works perfectly. Local 
+network is super-stable, and simultaneous users doesn't bother you.
+When it comes to the real world - your application can (and definitely will) face network issues. 
+Second case - deadlocks, which I personally see too often across different projects. 
+And the only possible solution here to avoid the data-loss - to do a query retry.
+
+**IMPORTANT:** Now this works **ONLY WITH MYSQL**. If someone requires postgres/other dbs support - please create an issue
 
 ## Usage
 
-[!] Now this works **ONLY WITH MYSQL**. If someone requires postgres support - please create an issue
+Install: `pip install django-db-retry`
 
-Right now there are two possible usages:
+Choose your flow (or use both):
 
-- To monkey-patch django methods globally
+- Monkey-patch django methods globally
 - Use a decorator
 
-## Monkey-patching:
+## Monkey-patch:
 
-[!] IMPORTANT: global patching won't handle retries for atomic transactions. `with_query_retry` should be used
+**IMPORTANT:** global patching won't handle retries for atomic transactions. `with_query_retry` should be used
 
-... somewhere on the top level of your project ...
+Add next code somewhere on the top level of your project
 ```python
 
-from django_db_retry import patch as install_db_retries
+from django_db_retry import install as install_db_retries
 install_db_retries()
 ```
 
-## Decorator usage
+## Decorator
+
+Can be used on top of any function/view and will do a retry if deadlock/network error will happen.
+Default number of retries is 5. This value can be configured by using the `QueryRetry` class (see example 2):
 
 ```python
 from django_db_retry import with_query_retry
