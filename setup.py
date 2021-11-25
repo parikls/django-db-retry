@@ -16,7 +16,7 @@ with requirements_path.open() as f:
 
 setup(
     name='django-db-retry',
-    version='0.1.1',
+    version='0.1.2',
     description='Adds support for database query retries',
     long_description=README,
     long_description_content_type='text/markdown',

@@ -21,7 +21,7 @@ __all__ = ('install', 'uninstall', 'with_query_retry', 'QueryRetry')
 
 logger = logging.getLogger('django-db-retry')
 
-DEFAULT_MAX_TRIES = 10
+DEFAULT_MAX_TRIES = 5
 
 MYSQL_RETRY_PATTERNS = {
     '1040',  # Too many connections
@@ -42,7 +42,6 @@ class DBRetry(Exception):
     Conditional exception. By raising this one we initiate the execution retry.
     Additionally, keeps a reference to an original exception raised
     """
-
     def __init__(self, orig: Exception):
         self.orig = orig
 
@@ -50,7 +49,7 @@ class DBRetry(Exception):
 def on_back_off(details):
     """ Log retry attempt on back-off """
     wait, tries, target = details['wait'], details['tries'], details['target']
-    logger.debug(f'Going to call {target} in {wait} seconds after {tries} tries')
+    logger.debug(f'django-db-retry: Going to call {target} in {wait} seconds after {tries} tries')
 
 
 def on_give_up(*_):
@@ -85,7 +84,8 @@ def install(max_tries: int = DEFAULT_MAX_TRIES):
     # actual monkey-patch
     DatabaseWrapper.ensure_connection = retry_rule(ensure_connection)
     django.db.backends.utils.CursorWrapper._execute_with_wrappers = retry_rule(
-        execute_with_wrappers)
+        execute_with_wrappers
+    )
 
 
 def uninstall():
@@ -120,7 +120,7 @@ def execute_with_wrappers(self: django.db.backends.utils.CursorWrapper, *args, *
 
         if not connection.connection:
             # connection was lost during the execution - need to reconnect
-            logger.debug('retry: connection lost. reconnecting')
+            logger.debug('django-db-retry: connection lost. reconnecting')
             try:
                 connection.connect()
             except (MySQLDatabaseError, DjangoDatabaseError):
@@ -128,19 +128,19 @@ def execute_with_wrappers(self: django.db.backends.utils.CursorWrapper, *args, *
 
         # we have a connection object - let's ping a db to ensure that connection is alive
         try:
-            logger.debug('retry: db ping')
+            logger.debug('django-db-retry: db ping')
             connection.connection.ping()
         except (MySQLDatabaseError, DjangoDatabaseError):
-            logger.debug('retry: db ping failed')
+            logger.debug('django-db-retry: db ping failed')
             # connection died or was closed by a previous attempt - need to re-connect in this case
             try:
                 connection.close()
                 connection.connect()
             except (MySQLDatabaseError, DjangoDatabaseError):
-                logger.debug('retry: cant connect to a database')
+                logger.debug('django-db-retry: cant connect to a database')
                 raise retry_error  # db is still not available, let's retry
 
-        logger.debug('retry: db ping succeed')
+        logger.debug('django-db-retry: db ping succeed')
         # db is accessible, and we have a connection object -
         # let's spawn a new cursor and update a reference
         self.cursor = connection.cursor()
@@ -154,7 +154,7 @@ def ensure_retryable(db_wrapper: DatabaseWrapper, exc: Exception):
     If it's not - we raise an original exception
     """
     if not any(retry_pattern in str(exc) for retry_pattern in MYSQL_RETRY_PATTERNS):
-        logger.debug('retry: unable to retry. retryable pattern was not found in raised exception')
+        logger.debug('django-db-retry: unable to retry. retryable pattern was not found')
         raise exc
 
     if db_wrapper.in_atomic_block is True:
@@ -163,7 +163,7 @@ def ensure_retryable(db_wrapper: DatabaseWrapper, exc: Exception):
         # support of nested atomic transactions will bring much more complexity.
         # Retrying of such blocks should be handled on a top-level with the
         # @with_query_retry decorator. Maybe this will be handled in a future
-        logger.debug('retry: unable to retry atomic transaction')
+        logger.debug('django-db-retry: unable to retry atomic transaction')
         raise exc
 
 
